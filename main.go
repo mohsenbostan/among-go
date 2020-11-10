@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/mohsenbostan/among-go/actions"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -64,21 +67,59 @@ func Handle(d actions.Discord, t actions.Twitter) {
 }
 
 func main() {
+	fmt.Print("\n    ___                                            ______     \n   /   |   ____ ___   ____   ____   ____ _        / ____/____ \n  / /| |  / __ `__ \\ / __ \\ / __ \\ / __ `/______ / / __ / __ \\\n / ___ | / / / / / // /_/ // / / // /_/ //_____// /_/ // /_/ /\n/_/  |_|/_/ /_/ /_/ \\____//_/ /_/ \\__, /        \\____/ \\____/ \n                                 /____/                       \n")
+
+	fmt.Println(strings.Repeat("=", 62))
+
 	// Loading environment variables
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalln("Error loading .env file")
-	}
+	LoadEnvVariables()
 
 	// Creating Discord and Twitter objects
 	var discord actions.Discord
 	var twitter actions.Twitter
 
 	// Setup a ticker to send request each minute
-	ticker := time.NewTicker(1 * time.Minute)
+	interval, err := strconv.Atoi(os.Getenv("INTERVAL"))
+	if err != nil {
+		log.Fatalln()
+	}
+
+	ticker := time.NewTicker(time.Duration(interval) * time.Minute)
 	for range ticker.C {
 
 		// Call the handler
 		Handle(discord, twitter)
+	}
+}
+
+func LoadEnvVariables() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalln("Error loading .env file")
+	}
+
+	defaultEnvs := []string{
+		"TWITTER_USERNAME",
+		"TWITTER_CONSUMER_KEY",
+		"TWITTER_CONSUMER_SECRET",
+		"TWITTER_ACCESS_TOKEN",
+		"TWITTER_TOKEN_SECRET",
+		"DISCORD_SERVER_ID",
+		"DISCORD_USERNAME",
+		"INTERVAL",
+		"MESSAGE",
+	}
+
+	for _, env := range defaultEnvs {
+		val, found := os.LookupEnv(env)
+		if len(val) <= 0 || !found {
+			log.Fatalln("All environment variables should be defined and they must have valid values. you can copy defaults from: '.env.example' .")
+		}
+		if env == "INTERVAL" {
+			interval, err := strconv.Atoi(val)
+			if err != nil || interval <= 0 {
+				log.Fatalln("INTERVAL must be an unsigned number and the minimum is 1.")
+			}
+		}
 	}
 }
