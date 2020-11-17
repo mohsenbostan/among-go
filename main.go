@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"github.com/mohsenbostan/among-go/actions"
+	"github.com/mohsenbostan/among-go/queue"
+	"github.com/mohsenbostan/among-go/utils"
 	"log"
 	"os"
 	"strconv"
@@ -11,12 +12,20 @@ import (
 	"time"
 )
 
+// Creating Discord and Twitter objects
+var discord actions.Discord
+var twitter actions.Twitter
+
 /*
 	Handler
 	This function will check the Discord's member's status and if the member was online,
 	it will update his Twitter profile by adding MESSAGE at the end of the profile description.
 */
-func Handle(d actions.Discord, t actions.Twitter) {
+func Handler() {
+
+	d := discord
+	t := twitter
+
 	log.Println("Start checking discord status...")
 
 	// Checking if member is online
@@ -72,11 +81,7 @@ func main() {
 	fmt.Println(strings.Repeat("=", 62))
 
 	// Loading environment variables
-	LoadEnvVariables()
-
-	// Creating Discord and Twitter objects
-	var discord actions.Discord
-	var twitter actions.Twitter
+	utils.LoadEnvVariables()
 
 	// Setup a ticker to send request each minute
 	interval, err := strconv.Atoi(os.Getenv("INTERVAL"))
@@ -84,42 +89,16 @@ func main() {
 		log.Fatalln()
 	}
 
+	q := queue.NewQueue()
+	conn, ch := q.Client()
+	defer conn.Close()
+	defer ch.Close()
+	newQueue := q.CreateQueue(ch, "update-status")
+	q.CreateJob("start", ch, newQueue)
+	go q.StartQueue(ch, newQueue, Handler)
+
 	ticker := time.NewTicker(time.Duration(interval) * time.Minute)
 	for range ticker.C {
-
-		// Call the handler
-		Handle(discord, twitter)
-	}
-}
-
-func LoadEnvVariables() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalln("Error loading .env file")
-	}
-
-	defaultEnvs := []string{
-		"TWITTER_USERNAME",
-		"TWITTER_CONSUMER_KEY",
-		"TWITTER_CONSUMER_SECRET",
-		"TWITTER_ACCESS_TOKEN",
-		"TWITTER_TOKEN_SECRET",
-		"DISCORD_SERVER_ID",
-		"DISCORD_USERNAME",
-		"INTERVAL",
-		"MESSAGE",
-	}
-
-	for _, env := range defaultEnvs {
-		val, found := os.LookupEnv(env)
-		if len(val) <= 0 || !found {
-			log.Fatalln("All environment variables should be defined and they must have valid values. you can copy defaults from: '.env.example' .")
-		}
-		if env == "INTERVAL" {
-			interval, err := strconv.Atoi(val)
-			if err != nil || interval <= 0 {
-				log.Fatalln("INTERVAL must be an unsigned number and the minimum is 1.")
-			}
-		}
+		q.CreateJob("operate", ch, newQueue)
 	}
 }
