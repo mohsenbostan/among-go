@@ -1,9 +1,9 @@
 dc-build:
-	docker build -t among-go .
+	docker-compose build
 dc-run:
-	docker run -it --rm --name among-go-run among-go
+	docker-compose up
 dc-run-d:
-	docker run -d -it --rm --name among-go-run among-go
+	docker-compose up -d
 build:
 	go build
 run:

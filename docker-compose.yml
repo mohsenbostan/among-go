@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+  among-go:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+  among-go-rabbitmq:
+    image: rabbitmq:management
+    hostname: ${RABBITMQ_DEFAULT_HOSTNAME}
+    volumes:
+      - "./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins"
+    ports:
+      - "${RABBITMQ_DEFAULT_USER}:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_PASS}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PORT}
+      - RABBITMQ_DEFAULT_VHOST="/"
